@@ -167,14 +167,14 @@
       // STEP 2: DOM ELEMENTS & GLOBAL VARIABLES
       // =========================================================================
       
-      // --- Existing Elements ---
+      // --- Init Elements ---
       let currentUser = null;
       const menuContainer = document.getElementById('menu-container');
-      // ... other auth/user elements ...
+      // --- Auth/User elements ---
       const authContainer = document.getElementById('auth-container');
       const userContainer = document.getElementById('user-container');
   
-      // --- NEW: View and Nav Elements ---
+      // --- View and Nav Elements ---
       const mainNav = document.getElementById('main-nav');
       const viewContainer = document.getElementById('view-container');
       const navVoteBtn = document.getElementById('nav-vote-btn');
@@ -293,20 +293,6 @@
           recipeContainer.innerHTML = '<p>Error loading recipes. Please try again later.</p>';
         }
       }
-      
-      // =========================================================================
-      // STEP 2: YOUR APP'S JAVASCRIPT LOGIC
-      // =========================================================================
-      
-      // --- Global Variables & DOM Elements ---
-      let currentUser = null;
-      const menuContainer = document.getElementById('menu-container');
-      const authContainer = document.getElementById('auth-container');
-      const userContainer = document.getElementById('user-container');
-      const emailInput = document.getElementById('email-input');
-      const sendLinkBtn = document.getElementById('send-link-btn');
-      const userEmailSpan = document.getElementById('user-email');
-      const signOutBtn = document.getElementById('sign-out-btn');
   
       // --- 1. Action Code Settings (Hard-coded URL) ---
       const actionCodeSettings = {
