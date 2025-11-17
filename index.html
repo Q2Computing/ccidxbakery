@@ -2,8 +2,89 @@
 <html>
 <head>
   <title>Bakery Feedback</title>
+  <style>
+    /* Basic styling to make it look decent */
+    body { font-family: sans-serif; padding: 20px; }
+    #menu-container { margin-top: 20px; }
+    .menu-item { 
+      border: 1px solid #ccc; 
+      padding: 10px; 
+      margin-bottom: 5px; 
+    }
+  </style>
 </head>
 <body>
-  <h1>Welcome to the Bakery!</h1>
+
+  <h1>Bakery Menu</h1>
+  <div id="menu-container">
+    <p>Loading menu...</p>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+
+  <script>
+    // =========================================================================
+    // STEP 2: YOUR FIREBASE CONFIGURATION
+    // ** IMPORTANT: Replace this with your project's config object! **
+    // =========================================================================
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    
+    // Get a reference to the Firestore database
+    const db = firebase.firestore();
+
+    // =========================================================================
+    // STEP 3: YOUR APP'S JAVASCRIPT LOGIC
+    // This code will run as soon as the page loads.
+    // =========================================================================
+    
+    // Find the 'menu-container' on our page
+    const menuContainer = document.getElementById('menu-container');
+
+    // Asynchronously get data from the 'weekly-menu' collection
+    async function getMenu() {
+      try {
+        // 1. Get a "snapshot" of the 'weekly-menu' collection
+        const snapshot = await db.collection('weekly-menu').get();
+
+        // 2. Clear the "Loading..." message
+        menuContainer.innerHTML = ''; 
+
+        // 3. Loop through each document in the collection
+        snapshot.forEach(doc => {
+          // Get the data from the document (e.g., { itemName: 'Sourdough Loaf', likes: 0 })
+          const data = doc.data();
+          
+          // 4. Create a new HTML element for this item
+          const itemElement = document.createElement('div');
+          itemElement.classList.add('menu-item'); // Add our CSS class
+          
+          // 5. Set its text. We'll add the like button in the next phase.
+          itemElement.textContent = `${data.itemName} (Likes: ${data.likes})`;
+          
+          // 6. Add the new element to the page
+          menuContainer.appendChild(itemElement);
+        });
+
+      } catch (error) {
+        console.error("Error fetching menu:", error);
+        menuContainer.innerHTML = '<p>Error loading menu. Please try again later.</p>';
+      }
+    }
+
+    // Run the function!
+    getMenu();
+  </script>
+
 </body>
 </html>
