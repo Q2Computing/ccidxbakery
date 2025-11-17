@@ -3,14 +3,18 @@
 <head>
   <title>Bakery Feedback</title>
   <style>
-    /* Basic styling to make it look decent */
     body { font-family: sans-serif; padding: 20px; }
     #menu-container { margin-top: 20px; }
-    .menu-item { 
-      border: 1px solid #ccc; 
-      padding: 10px; 
-      margin-bottom: 5px; 
+    .menu-item {
+      display: flex; /* Aligns items in a row */
+      justify-content: space-between; /* Puts space between name and buttons */
+      align-items: center; /* Vertically centers items */
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin-bottom: 5px;
     }
+    .menu-item span { font-weight: bold; }
+    .menu-item button { margin-left: 5px; font-size: 1.2em; }
   </style>
 </head>
 <body>
@@ -26,15 +30,15 @@
   <script>
     // =========================================================================
     // STEP 2: YOUR FIREBASE CONFIGURATION
-    // ** IMPORTANT: Replace this with your project's config object! **
+    // This is your same config object.
     // =========================================================================
     const firebaseConfig = {
-      apiKey: "AIzaSyDZkVnHXI3siPKZXvFRPMEslbeoyTPGmJM",
-      authDomain: "ccidxbakery.firebaseapp.com",
-      projectId: "ccidxbakery",
-      storageBucket: "ccidxbakery.firebasestorage.app",
-      messagingSenderId: "540177774922",
-      appId: "1:540177774922:web:0db9487fb683f4edec29b3"
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
     };
 
     // Initialize Firebase
@@ -45,34 +49,83 @@
 
     // =========================================================================
     // STEP 3: YOUR APP'S JAVASCRIPT LOGIC
-    // This code will run as soon as the page loads.
     // =========================================================================
     
-    // Find the 'menu-container' on our page
     const menuContainer = document.getElementById('menu-container');
 
-    // Asynchronously get data from the 'weekly-menu' collection
+    // ** NEW FUNCTION **
+    // This function will update the database when a button is clicked.
+    async function updateVote(docId, fieldToUpdate) {
+      
+      // 1. Get a reference to the specific document (e.g., 'Sourdough Loaf')
+      const docRef = db.collection('weekly-menu').doc(docId);
+
+      // 2. Use 'FieldValue.increment(1)' to safely add 1 to the count.
+      // This prevents errors if two people vote at the exact same time.
+      const increment = firebase.firestore.FieldValue.increment(1);
+
+      // 3. Update the document.
+      try {
+        if (fieldToUpdate === 'like') {
+          await docRef.update({ likes: increment });
+          console.log("Like recorded!");
+        } else if (fieldToUpdate === 'dislike') {
+          await docRef.update({ dislikes: increment });
+          console.log("Dislike recorded!");
+        }
+        // Note: The page won't auto-update the like count yet. 
+        // We'll add that later. A simple page refresh will show the new number.
+        
+      } catch (error) {
+        console.error("Error updating vote:", error);
+      }
+    }
+
+
+    // ** MODIFIED FUNCTION **
+    // This function now builds the buttons as well as the text.
     async function getMenu() {
       try {
-        // 1. Get a "snapshot" of the 'weekly-menu' collection
         const snapshot = await db.collection('weekly-menu').get();
-
-        // 2. Clear the "Loading..." message
         menuContainer.innerHTML = ''; 
 
-        // 3. Loop through each document in the collection
         snapshot.forEach(doc => {
-          // Get the data from the document (e.g., { itemName: 'Sourdough Loaf', likes: 0 })
           const data = doc.data();
           
-          // 4. Create a new HTML element for this item
+          // 1. Create the container for the item
           const itemElement = document.createElement('div');
-          itemElement.classList.add('menu-item'); // Add our CSS class
+          itemElement.classList.add('menu-item');
           
-          // 5. Set its text. We'll add the like button in the next phase.
-          itemElement.textContent = `${data.itemName} (Likes: ${data.likes})`;
+          // 2. Create the text for the item
+          const itemText = document.createElement('span');
+          // We only display LIKES, as requested in "Option A"
+          itemText.textContent = `${data.itemName} (Likes: ${data.likes})`;
           
-          // 6. Add the new element to the page
+          // 3. Create the container for the buttons
+          const buttonContainer = document.createElement('div');
+
+          // 4. Create the "Like" button
+          const likeButton = document.createElement('button');
+          likeButton.textContent = '👍';
+          // This tells the button what to do on click:
+          // Call 'updateVote' with this document's ID and the action 'like'
+          likeButton.onclick = () => updateVote(doc.id, 'like');
+
+          // 5. Create the "Dislike" button
+          const dislikeButton = document.createElement('button');
+          dislikeButton.textContent = '👎';
+          // Call 'updateVote' with this document's ID and the action 'dislike'
+          dislikeButton.onclick = () => updateVote(doc.id, 'dislike');
+
+          // 6. Put the buttons in their container
+          buttonContainer.appendChild(likeButton);
+          buttonContainer.appendChild(dislikeButton);
+          
+          // 7. Add the text and the button container to the main item element
+          itemElement.appendChild(itemText);
+          itemElement.appendChild(buttonContainer);
+          
+          // 8. Add the whole item to the page
           menuContainer.appendChild(itemElement);
         });
 
