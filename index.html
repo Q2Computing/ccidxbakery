@@ -126,8 +126,7 @@
   
       // --- 1. Action Code Settings (Hard-coded URL) ---
       const actionCodeSettings = {
-        // ⚠️ EDIT THIS to your GitHub Pages URL
-        url: 'https://your-username.github.io/your-repo-name/', 
+        url: 'https://q2computing.github.io/ccidxbakery/', 
         handleCodeInApp: true
       };
   
@@ -152,8 +151,9 @@
         const email = emailInput.value;
         
         const requiredDomain = '@champlain.edu'; 
+        const testEmail = 'q2computing@gmail.com';
         
-        if (!email.endsWith(requiredDomain)) {
+        if (!email.endsWith(requiredDomain) && email !== testEmail) {
           alert(`Please use a valid ${requiredDomain} email address.`);
           return;
         }
