@@ -219,47 +219,73 @@
       });
   
       // --- 7. Update Vote (with Double-Vote Prevention) ---
-      async function updateVote(docId, fieldToUpdate) {
+      async function updateVote(docId, newVote) {
         if (!currentUser) return;
   
         const userId = currentUser.uid;
         const voteRef = db.collection('user-votes').doc(userId);
         const menuDocRef = db.collection('weekly-menu').doc(docId);
+        const increment = firebase.firestore.FieldValue.increment(1);
+        const decrement = firebase.firestore.FieldValue.increment(-1);
   
         try {
           await db.runTransaction(async (transaction) => {
             const userVoteDoc = await transaction.get(voteRef);
-            
-            if (userVoteDoc.exists && userVoteDoc.data()[docId]) {
-              throw new Error("You have already voted for this item.");
-            }
-            
             const menuDoc = await transaction.get(menuDocRef);
-            if (!menuDoc.exists) throw new Error("Menu item does not exist!");
-            
-            const increment = firebase.firestore.FieldValue.increment(1);
-            
-            // Update the menu item's count
-            if (fieldToUpdate === 'like') {
-              transaction.update(menuDocRef, { likes: increment });
-            } else {
-              transaction.update(menuDocRef, { dislikes: increment });
+  
+            if (!menuDoc.exists) {
+              throw new Error("Menu item does not exist!");
+            }
+  
+            const previousVote = userVoteDoc.exists ? userVoteDoc.data()[docId] : null;
+  
+            // Case 1: The user is voting the same way twice. Do nothing.
+            if (previousVote === newVote) {
+              console.log("Already voted this way.");
+              return; // Stop the function
+            }
+  
+            // Case 2: The user is changing their vote (e.g., 'like' to 'dislike')
+            if (previousVote && previousVote !== newVote) {
+              console.log(`Changing vote from ${previousVote} to ${newVote}`);
+              
+              // Create updates to swap the counts
+              let updates = {};
+              if (newVote === 'like') {
+                updates = { likes: increment, dislikes: decrement }; // Add like, remove dislike
+              } else {
+                updates = { likes: decrement, dislikes: increment }; // Add dislike, remove like
+              }
+              transaction.update(menuDocRef, updates);
+              
+              // Update their personal vote record
+              transaction.update(voteRef, { [docId]: newVote });
             }
             
-            // Record the user's vote
-            transaction.set(voteRef, {
-              [docId]: fieldToUpdate
-            }, { merge: true });
-          });
-  
-          console.log("Vote recorded!");
-          getMenu(); // Refresh menu to show new count and disable buttons
-  
-        } catch (error) {
-          console.error("Error updating vote:", error);
-          alert(error.message); // Show "You have already voted" error
-        }
+            // Case 3: This is a brand new vote
+            if (!previousVote) {
+              console.log(`Recording new vote: ${newVote}`);
+              
+              // Increment the new vote count
+              if (newVote === 'like') {
+                transaction.update(menuDocRef, { likes: increment });
+              } else {
+                transaction.update(menuDocRef, { dislikes: increment });
+              }
+              
+              // Record their personal vote
+              transaction.set(voteRef, { [docId]: newVote }, { merge: true });
+          }
+        });
+
+        console.log("Vote transaction successful!");
+        getMenu(); // Refresh menu to show the new highlighted vote
+
+      } catch (error) {
+        console.error("Error updating vote:", error);
+        alert(error.message);
       }
+    }
   
       // --- 8. Get Menu (and Disable Voted Buttons) ---
       async function getMenu() {
@@ -292,13 +318,13 @@
             dislikeButton.onclick = () => updateVote(doc.id, 'dislike');
   
             if (userVotes[doc.id]) {
-              likeButton.disabled = true;
-              dislikeButton.disabled = true;
-              
+              // We no longer disable the buttons. We just style them.
               if (userVotes[doc.id] === 'like') {
                 likeButton.style.border = '2px solid green';
+                dislikeButton.style.border = 'none'; // Reset other button
               } else {
                 dislikeButton.style.border = '2px solid red';
+                likeButton.style.border = 'none'; // Reset other button
               }
             }
             
