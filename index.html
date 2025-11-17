@@ -1,153 +1,300 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <title>Bakery Feedback</title>
-  <style>
-    body { font-family: sans-serif; padding: 20px; }
-    #menu-container { margin-top: 20px; }
-    .menu-item {
-      display: flex; /* Aligns items in a row */
-      justify-content: space-between; /* Puts space between name and buttons */
-      align-items: center; /* Vertically centers items */
-      border: 1px solid #ccc;
-      padding: 10px;
-      margin-bottom: 5px;
-    }
-    .menu-item span { font-weight: bold; }
-    .menu-item button { margin-left: 5px; font-size: 1.2em; }
-  </style>
-</head>
-<body>
-  <h1>Bakery Menu</h1>
-
-  <div id="auth-container">
-    <p>Please sign in with your college email to vote.</p>
-    <input type="email" id="email-input" placeholder="student@college.edu" />
-    <button id="send-link-btn">Send Sign-In Link</button>
-  </div>
+  <head>
+    <title>Bakery Feedback</title>
+    <style>
+      body { font-family: sans-serif; padding: 20px; }
+      #menu-container { margin-top: 20px; }
+      .menu-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border: 1px solid #ccc;
+        padding: 10px;
+        margin-bottom: 5px;
+      }
+      .menu-item span { font-weight: bold; }
+      .menu-item button { margin-left: 5px; font-size: 1.2em; }
+    </style>
+  </head>
+  <body>
+    <h1>Bakery Menu</h1>
   
-  <div id="user-container" style="display: none;">
-    <p>Welcome, <span id="user-email"></span>!</p>
-    <button id="sign-out-btn">Sign Out</button>
-  </div>
-  <div id="menu-container">
-    <p>Loading menu...</p>
-  </div>
-
-  <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
-
-  <script>
-    // =========================================================================
-    // STEP 2: YOUR FIREBASE CONFIGURATION
-    // This is your same config object.
-    // =========================================================================
-    const firebaseConfig = {
-      apiKey: "AIzaSyDZkVnHXI3siPKZXvFRPMEslbeoyTPGmJM",
-      authDomain: "ccidxbakery.firebaseapp.com",
-      projectId: "ccidxbakery",
-      storageBucket: "ccidxbakery.firebasestorage.app",
-      messagingSenderId: "540177774922",
-      appId: "1:540177774922:web:0db9487fb683f4edec29b3"
-    };
-
-    // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
+    <div id="auth-container">
+      <p>Please sign in with your college email to vote.</p>
+      <input type="email" id="email-input" placeholder="student@college.edu" />
+      <button id="send-link-btn">Send Sign-In Link</button>
+    </div>
     
-    // Get a reference to the Firestore database
-    const db = firebase.firestore();
-
-    // =========================================================================
-    // STEP 3: YOUR APP'S JAVASCRIPT LOGIC
-    // =========================================================================
-    
-    const menuContainer = document.getElementById('menu-container');
-
-    // ** NEW FUNCTION **
-    // This function will update the database when a button is clicked.
-    async function updateVote(docId, fieldToUpdate) {
+    <div id="user-container" style="display: none;">
+      <p>Welcome, <span id="user-email"></span>!</p>
+      <button id="sign-out-btn">Sign Out</button>
+    </div>
+    <div id="menu-container">
+      <p>Loading menu...</p>
+    </div>
+  
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+  
+    <script>
+      // =========================================================================
+      // STEP 2: FIREBASE CONFIGURATION
+      // =========================================================================
+      const firebaseConfig = {
+        apiKey: "AIzaSyDZkVnHXI3siPKZXvFRPMEslbeoyTPGmJM",
+        authDomain: "ccidxbakery.firebaseapp.com",
+        projectId: "ccidxbakery",
+        storageBucket: "ccidxbakery.firebasestorage.app",
+        messagingSenderId: "540177774922",
+        appId: "1:540177774922:web:0db9487fb683f4edec29b3"
+      };
+  
+      // Initialize Firebase
+      firebase.initializeApp(firebaseConfig);
       
-      // 1. Get a reference to the specific document (e.g., 'Sourdough Loaf')
-      const docRef = db.collection('weekly-menu').doc(docId);
-
-      // 2. Use 'FieldValue.increment(1)' to safely add 1 to the count.
-      // This prevents errors if two people vote at the exact same time.
-      const increment = firebase.firestore.FieldValue.increment(1);
-
-      // 3. Update the document.
+      // Get a reference to the Firestore database
+      const db = firebase.firestore();
+      const auth = firebase.auth();
+  
+      // =========================================================================
+      // STEP 3: JAVASCRIPT LOGIC
+      // =========================================================================
+      
+  const menuContainer = document.getElementById('menu-container');
+    let currentUser = null; // NEW: Variable to hold the signed-in user
+  
+    // --- NEW: AUTHENTICATION ELEMENTS ---
+    const authContainer = document.getElementById('auth-container');
+    const userContainer = document.getElementById('user-container');
+    const emailInput = document.getElementById('email-input');
+    const sendLinkBtn = document.getElementById('send-link-btn');
+    const userEmailSpan = document.getElementById('user-email');
+    const signOutBtn = document.getElementById('sign-out-btn');
+  
+    // --- NEW: ACTION CODE SETTINGS FOR MAGIC LINK ---
+    // This tells Firebase where to send the user *back* to after they click the link.
+    const actionCodeSettings = {
+      // This MUST be the URL of your app.
+      url: window.location.href, 
+      handleCodeInApp: true // This is crucial.
+    };
+  
+    // --- NEW: FUNCTION TO SEND THE LINK ---
+    sendLinkBtn.onclick = async () => {
+      const email = emailInput.value;
+      if (!email.endsWith('@college.edu')) { // Domain check
+          alert("Please use a valid @college.edu email address.");
+          return;
+      }
+      
       try {
-        if (fieldToUpdate === 'like') {
-          await docRef.update({ likes: increment });
-          console.log("Like recorded!");
-        } else if (fieldToUpdate === 'dislike') {
-          await docRef.update({ dislikes: increment });
-          console.log("Dislike recorded!");
-        }
-        // Note: The page won't auto-update the like count yet. 
-        // We'll add that later. A simple page refresh will show the new number.
-        
+        await auth.sendSignInLinkToEmail(email, actionCodeSettings);
+        // Save the email in the browser's storage
+        window.localStorage.setItem('emailForSignIn', email);
+        alert('Sign-in link sent to ' + email + '. Check your inbox!');
+        emailInput.value = '';
       } catch (error) {
-        console.error("Error updating vote:", error);
+        console.error("Error sending link:", error);
+        alert("Error: " + error.message);
+      }
+    };
+  
+    // --- NEW: FUNCTION TO SIGN OUT ---
+    signOutBtn.onclick = async () => {
+      try {
+        await auth.signOut();
+        alert("You have been signed out.");
+      } catch (error) {
+        console.error("Error signing out:", error);
+      }
+    };
+  
+    // --- NEW: HANDLE THE SIGN-IN COMPLETION ---
+    // This code runs every time the page loads to check if it's a magic link.
+    async function handleMagicLinkSignIn() {
+      // 1. Check if the URL is a magic link
+      if (auth.isSignInWithEmailLink(window.location.href)) {
+        // 2. Get the email we saved earlier
+        let email = window.localStorage.getItem('emailForSignIn');
+        if (!email) {
+          // This is a failsafe. Ask the user for their email again.
+          email = window.prompt('Please provide your email to complete sign-in');
+        }
+        
+        try {
+          // 3. Complete the sign-in
+          const result = await auth.signInWithEmailLink(email, window.location.href);
+          
+          // 4. Clean up
+          window.localStorage.removeItem('emailForSignIn');
+          // Clear the URL of the sign-in codes
+          window.history.replaceState({}, document.title, window.location.pathname);
+          
+          console.log("Successfully signed in!", result.user);
+  
+        } catch (error) {
+          console.error("Error signing in with link:", error);
+          alert("Error: " + error.message);
+        }
       }
     }
-
-
-    // ** MODIFIED FUNCTION **
-    // This function now builds the buttons as well as the text.
-    async function getMenu() {
+  
+    // --- NEW: LISTEN FOR AUTH STATE CHANGES ---
+    // This is the most important auth function. It runs
+    // when the page loads AND when the user signs in or out.
+    auth.onAuthStateChanged((user) => {
+      if (user) {
+        // User is signed IN
+        console.log("User is signed in:", user.email);
+        currentUser = user; // Store the user object
+        authContainer.style.display = 'none'; // Hide sign-in form
+        userContainer.style.display = 'block'; // Show user info
+        userEmailSpan.textContent = user.email;
+        
+        // Now that we're signed in, get the menu (and their votes)
+        getMenu(); 
+  
+      } else {
+        // User is signed OUT
+        console.log("User is signed out.");
+        currentUser = null;
+        authContainer.style.display = 'block'; // Show sign-in form
+        userContainer.style.display = 'none';  // Hide user info
+        
+        // Show a "please sign in" message instead of the menu
+        menuContainer.innerHTML = '<p>Please sign in to view the menu and vote.</p>';
+      }
+    });
+  
+    
+    // ==========================================================
+    // STEP 4: PREVENTING DOUBLE-VOTING
+    // We must modify your `updateVote` and `getMenu` functions
+    // ==========================================================
+    
+    /**
+     * MODIFIED: updateVote function.
+     * Now checks if a user has already voted *before* sending the update.
+     */
+    async function updateVote(docId, fieldToUpdate) {
+      if (!currentUser) {
+        alert("You must be signed in to vote.");
+        return;
+      }
+  
+      const userId = currentUser.uid;
+      const voteRef = db.collection('user-votes').doc(userId);
+      const menuDocRef = db.collection('weekly-menu').doc(docId);
+  
       try {
+        // Use a Firestore Transaction to make this atomic (all or nothing)
+        await db.runTransaction(async (transaction) => {
+          // 1. Get the user's vote document
+          const userVoteDoc = await transaction.get(voteRef);
+          
+          // 2. Check if they've already voted on this item
+          if (userVoteDoc.exists && userVoteDoc.data()[docId]) {
+            // They have! Throw an error to stop the transaction.
+            throw new Error("You have already voted for this item.");
+          }
+          
+          // 3. They have NOT voted. Proceed.
+          // Get the current like/dislike count
+          const menuDoc = await transaction.get(menuDocRef);
+          if (!menuDoc.exists) {
+            throw new Error("Menu item does not exist!");
+          }
+          const currentCount = menuDoc.data()[fieldToUpdate + 's'] || 0;
+  
+          // 4. Update the menu item's count (using update, not increment)
+          transaction.update(menuDocRef, { [fieldToUpdate + 's']: currentCount + 1 });
+          
+          // 5. Record the user's vote in their document
+          // This creates the doc if it doesn't exist
+          transaction.set(voteRef, {
+            [docId]: fieldToUpdate // e.g., { "sourdough-loaf": "like" }
+          }, { merge: true }); // 'merge: true' adds this vote without overwriting other votes
+        });
+  
+        console.log("Vote recorded!");
+        // Re-fetch the menu to show the new count and disable the buttons
+        getMenu(); 
+  
+      } catch (error) {
+        console.error("Error updating vote:", error);
+        alert(error.message); // Show the error (e.g., "You have already voted")
+      }
+    }
+  
+    /**
+     * MODIFIED: getMenu function.
+     * Now also fetches the user's votes to disable buttons.
+     */
+    async function getMenu() {
+      if (!currentUser) return; // Should be impossible, but a good check
+  
+      try {
+        // 1. Get the user's past votes
+        const userVoteRef = db.collection('user-votes').doc(currentUser.uid);
+        const userVoteDoc = await userVoteRef.get();
+        const userVotes = userVoteDoc.exists ? userVoteDoc.data() : {};
+  
+        // 2. Get the menu
         const snapshot = await db.collection('weekly-menu').get();
         menuContainer.innerHTML = ''; 
-
+  
         snapshot.forEach(doc => {
           const data = doc.data();
-          
-          // 1. Create the container for the item
           const itemElement = document.createElement('div');
           itemElement.classList.add('menu-item');
           
-          // 2. Create the text for the item
           const itemText = document.createElement('span');
-          // We only display LIKES, as requested in "Option A"
           itemText.textContent = `${data.itemName} (Likes: ${data.likes})`;
           
-          // 3. Create the container for the buttons
           const buttonContainer = document.createElement('div');
-
-          // 4. Create the "Like" button
           const likeButton = document.createElement('button');
           likeButton.textContent = '👍';
-          // This tells the button what to do on click:
-          // Call 'updateVote' with this document's ID and the action 'like'
           likeButton.onclick = () => updateVote(doc.id, 'like');
-
-          // 5. Create the "Dislike" button
+  
           const dislikeButton = document.createElement('button');
           dislikeButton.textContent = '👎';
-          // Call 'updateVote' with this document's ID and the action 'dislike'
           dislikeButton.onclick = () => updateVote(doc.id, 'dislike');
-
-          // 6. Put the buttons in their container
+  
+          // --- NEW: CHECK IF ALREADY VOTED ---
+          if (userVotes[doc.id]) {
+            // This item's ID is in the user's vote map
+            likeButton.disabled = true;
+            dislikeButton.disabled = true;
+            
+            // Add visual feedback
+            if (userVotes[doc.id] === 'like') {
+              likeButton.style.opacity = 1;
+              likeButton.style.border = '2px solid green';
+            } else {
+              dislikeButton.style.opacity = 1;
+              dislikeButton.style.border = '2px solid red';
+            }
+          }
+          
           buttonContainer.appendChild(likeButton);
           buttonContainer.appendChild(dislikeButton);
           
-          // 7. Add the text and the button container to the main item element
           itemElement.appendChild(itemText);
           itemElement.appendChild(buttonContainer);
           
-          // 8. Add the whole item to the page
           menuContainer.appendChild(itemElement);
         });
-
+  
       } catch (error) {
         console.error("Error fetching menu:", error);
-        menuContainer.innerHTML = '<p>Error loading menu. Please try again later.</p>';
+        menuContainer.innerHTML = '<p>Error loading menu.</p>';
       }
     }
-
-    // Run the function!
-    getMenu();
-  </script>
-
-</body>
+  
+    // --- NEW: KICK OFF THE AUTH CHECK ---
+    // We must call this on page load.
+    handleMagicLinkSignIn();
+    </script>
+  </body>
 </html>
