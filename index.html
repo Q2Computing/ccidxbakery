@@ -18,8 +18,18 @@
   </style>
 </head>
 <body>
-
   <h1>Bakery Menu</h1>
+
+  <div id="auth-container">
+    <p>Please sign in with your college email to vote.</p>
+    <input type="email" id="email-input" placeholder="student@college.edu" />
+    <button id="send-link-btn">Send Sign-In Link</button>
+  </div>
+  
+  <div id="user-container" style="display: none;">
+    <p>Welcome, <span id="user-email"></span>!</p>
+    <button id="sign-out-btn">Sign Out</button>
+  </div>
   <div id="menu-container">
     <p>Loading menu...</p>
   </div>
